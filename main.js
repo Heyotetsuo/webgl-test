@@ -29,7 +29,6 @@ function rotateX(m, angle){
 	m[6] = m[6]*c+mv5*s;
 	m[10] = m[10]*c+mv9*s;
 }
-
 function rotateY(m,angle){
 	var c = Math.cos(angle);
 	var s = Math.sin(angle);
@@ -41,9 +40,33 @@ function rotateY(m,angle){
 	m[6] = c*m[6]-s*mv4;
 	m[10] = c*m[10]-s*mv8;
 }
+function paintVerts(verts){
+	var a=[],b=[],i,j;
+	for(i=0;i<verts.length/3;i++){
+		b=[0,0,0];
+		b[i%3]=1;
+		for(j=0;j<3;j++){
+			a.push(b[j]);
+		}
+	}
+	return a;
+}
 function init(){
-	verts = [ 0,1,0, 1,-1,0, -1,-1,0 ];
-	clr = [ 1,0,0, 0,1,0, 0,0,1 ];
+	verts = [
+		-.5,-.5,-.5, -.5,.5,-.5, -.5,-.5,.5,
+		-.5,.5,.5, .5,-.5,.5, .5,.5,.5,
+		.5,-.5,-.5, .5,.5,-.5, -.5,-.5,-.5,
+		-.5,.5,-.5, -.5,.5,.5, -.5,-.5,.5,
+		-.5,.5,.5, .5,.5,.5, .5,-.5,.5,
+		.5,.5,.5, .5,.5,-.5, -.5,.5,-.5,
+		.5,-.5,-.5, .5,.5,-.5, -.5,.5,-.5,
+		.5,.5,.5, .5,.5,-.5, -.5,-.5,-.5,
+		-.5,-.5,.5, .5,-.5,-.5, -.5,-.5,-.5,
+		-.5,-.5,.5, -.5,.5,.5, -.5,-.5,.5,
+		.5,-.5,.5, .5,.5,.5, .5,-.5,.5,
+		.5,-.5,-.5, -.5,.5,-.5, .5,-.5,-.5,
+	];
+	clr = paintVerts(verts);
 
 	vBuff = C.createBuffer();
 	C.bindBuffer(AB, vBuff);
@@ -92,6 +115,7 @@ function init(){
 	C.vertexAttribPointer(cLoc,3,C.FLOAT,false,0,0);
 
 	C.useProgram(prog);
+	C.enable(C.DEPTH_TEST);
 
 	uniLoc = { matrix: C.getUniformLocation(prog,`matrix`) }
 	mat = mat4Create();
@@ -99,9 +123,10 @@ function init(){
 	function animate(){
 		requestAnimationFrame(animate);
 		// translate( mat, [.001,.003,0] );
-		rotateY(mat,.1);
+		rotateY(mat,.01);
+		rotateX(mat,.02);
 		C.uniformMatrix4fv( uniLoc.matrix, false, mat );
-		C.drawArrays(C.TRIANGLES,0,3);
+		C.drawArrays(C.TRIANGLES,0,verts.length/3);
 	}
 
 	animate();
