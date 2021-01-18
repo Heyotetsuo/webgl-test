@@ -1,11 +1,20 @@
-var doc=document,verts,clr,vBuff,cBuff,vShdr,fShdr,prog,pLoc,cLoc,uniLoc,mat,res;
+var doc=document,verts,clr,vBuff,cBuff,vShdr,fShdr,prog,pLoc,cLoc,uniLoc,mat,res,rnd=Math.random;
 var CVS=doc.querySelector("canvas");
 var C=CVS.getContext("webgl");
 var AB=C.ARRAY_BUFFER,SD=C.STATIC_DRAW;
 function mat4Create(){ return [ 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 ] }
+function parseVerts(mat){
+	var mat2=[],i,j,idx;
+	for(i=0;i<mat.length;i+=3){ // step through each point (3 values)
+		for(j=0;j<9;j++){ // step through each face (9 values)
+			idx=(i+j)%mat.length;
+			mat2.push(mat[idx]/2);
+		}
+	}
+	return mat2;
+}
 function translate(mat,vec){
-	var i;
-	for(i=0;i<vec.length;i++) mat[i+12] += vec[i];
+	for(var i=0;i<vec.length;i++) mat[i+12]+=vec[i];
 }
 function rotateZ(m,angle){
 	var c = Math.cos(angle);
@@ -40,32 +49,29 @@ function rotateY(m,angle){
 	m[6] = c*m[6]-s*mv4;
 	m[10] = c*m[10]-s*mv8;
 }
+function getColor(){
+	return [rnd(),rnd(),rnd()];
+}
 function paintVerts(verts){
-	var a=[],b=[],i,j;
-	for(i=0;i<verts.length/3;i++){
-		b=[0,0,0];
-		b[i%3]=1;
-		for(j=0;j<3;j++){
-			a.push(b[j]);
+	var i,j,k,a=[],b=[];
+	for(i=0;i<verts.length;i+=3){ // each point (3values)
+		b.shift();
+		for(j=0;j<3;j++){ // each color
+			if (b[j]) continue;
+			for(k=0;k<3;k++){ // each channel
+				a.push( b[j]?b[j]:rnd() );
+			}
 		}
+		b.shift();
 	}
 	return a;
 }
 function init(){
-	verts = [
-		-.5,-.5,-.5, -.5,.5,-.5, -.5,-.5,.5,
-		-.5,.5,.5, .5,-.5,.5, .5,.5,.5,
-		.5,-.5,-.5, .5,.5,-.5, -.5,-.5,-.5,
-		-.5,.5,-.5, -.5,.5,.5, -.5,-.5,.5,
-		-.5,.5,.5, .5,.5,.5, .5,-.5,.5,
-		.5,.5,.5, .5,.5,-.5, -.5,.5,-.5,
-		.5,-.5,-.5, .5,.5,-.5, -.5,.5,-.5,
-		.5,.5,.5, .5,.5,-.5, -.5,-.5,-.5,
-		-.5,-.5,.5, .5,-.5,-.5, -.5,-.5,-.5,
-		-.5,-.5,.5, -.5,.5,.5, -.5,-.5,.5,
-		.5,-.5,.5, .5,.5,.5, .5,-.5,.5,
-		.5,-.5,-.5, -.5,.5,-.5, .5,-.5,-.5,
-	];
+	verts = parseVerts([
+		-1,-1,-1, -1,1,-1, -1,-1,1, -1,1,1,
+		1,-1,1, 1,1,1, 1,-1,-1, 1,1,-1,
+	]);
+  
 	clr = paintVerts(verts);
 
 	vBuff = C.createBuffer();
