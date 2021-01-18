@@ -3,9 +3,6 @@ var CVS=doc.querySelector("canvas");
 var C=CVS.getContext("webgl");
 var AB=C.ARRAY_BUFFER,SD=C.STATIC_DRAW;
 function mat4Create(){ return [ 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 ] }
-function translate(mat,vec){
-	for(var i=0;i<vec.length;i++) mat[i+12]+=vec[i];
-}
 function rotateZ(m,angle){
 	var c = Math.cos(angle);
 	var s = Math.sin(angle);
@@ -96,9 +93,18 @@ function loadModel(fname, callback){
 	xhr.open( "GET", fname );
 	xhr.send();
 }
+function translate(mat,vec){
+	for(var i=0;i<mat.length;i+=3){
+		mat[i]+=vec[0];
+		mat[i+1]+=vec[1];
+		mat[i+2]+=vec[2];
+	}
+	return mat;
+}
 function init(){
 	obj = parseObj(obj);
 	obj = scaleObj(obj, .02);
+	obj.verts = translate( obj.verts, [0,0,0] );
 	clr = paintVerts(obj.verts);
 
 	vBuff = C.createBuffer();
@@ -165,6 +171,6 @@ function init(){
 	animate();
 }
 function main(){
-	loadModel("figure.json", init);
+	loadModel("tape.json", init);
 }
 main();

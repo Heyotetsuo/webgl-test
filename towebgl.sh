@@ -10,15 +10,16 @@ fi;
 f1="$1";
 f2="$( sed 's/\.obj$/.json/' <<< "$f1" )";
 verts="$(
-	egrep '^v' "$f1" |
+	egrep '^v ' "$f1" |
 	sed -e 's/v //g' -e 's/ /,/g' |
 	tr -d '\r' |
 	tr '\n' ',' |
 	sed 's/,$//'
 )";
 faces="$(
-	egrep '^f' "$f1" |
+	egrep '^f ' "$f1" |
 	sed -e 's/f //g' -e 's/ /,/g' |
+	sed 's/\/[0-9]*\/[0-9]*//g' |
 	tr -d '\r' |
 	tr '\n' ',' |
 	sed 's/,$//'
