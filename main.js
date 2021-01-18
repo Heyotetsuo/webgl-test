@@ -49,20 +49,21 @@ function rotateY(m,angle){
 	m[6] = c*m[6]-s*mv4;
 	m[10] = c*m[10]-s*mv8;
 }
-function getColor(){
-	return [rnd(),rnd(),rnd()];
+function addRandTo(a,n){
+	if (!a) throw("addRandTo() requires argument `a` (array)")
+	if (!n) throw("addRandTo() requires second argument `n` (integer)");
+	for(var i=0;i<n;i++) a.push(rnd());
+	return a;
 }
 function paintVerts(verts){
-	var i,j,k,a=[],b=[];
+	var i,j,k,a=[],b=[],c=[];
+	b=addRandTo(b,9);
 	for(i=0;i<verts.length;i+=3){ // each point (3values)
-		b.shift();
-		for(j=0;j<3;j++){ // each color
-			if (b[j]) continue;
-			for(k=0;k<3;k++){ // each channel
-				a.push( b[j]?b[j]:rnd() );
-			}
+		b=b.slice(3);
+		b=addRandTo(b,3);
+		for(j=0;j<9;j++){ // each color
+			a.push(b[j]);
 		}
-		b.shift();
 	}
 	return a;
 }
