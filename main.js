@@ -54,26 +54,36 @@ function paintVerts(verts){
 	}
 	return a;
 }
-function addPointTo(a,i,o){ // dest a, source index i, source obj o
-	i = (i-1)*3;
-	for(var j=0;j<3;j++) a.push(o.verts[i+j]);
-	return a;
+function tri(a){
+	if ( a.length === 3 ){
+		return a;
+	}
+	var b=[],idx,i,j;
+	for(i=0;i<a.length;i+=2){
+		for(j=0;j<3;j++){
+			idx=(i+j)%a.length;
+			b.push(a[idx]);
+		}
+	}
+	return b;
+}
+function arrConcat(a,b){
+	for (var i=0; i<b.length; i++){
+		a.push(b[i]);
+	}
 }
 function parseObj(obj){
-	var mat=[],v=obj.verts,f=obj.faces,i,j,o={};
-	var a,b,c,d,l=f.length;
-	for(i=0;i<f.length;i+=4){ // triangulate
-		a=i%l,b=(i+1)%l,c=(i+2)%l,d=(i+3)%l;
-		addPointTo( mat, f[a], obj );
-		addPointTo( mat, f[b], obj );
-		addPointTo( mat, f[c], obj );
-		addPointTo( mat, f[a], obj );
-		addPointTo( mat, f[c], obj );
-		addPointTo( mat, f[d], obj );
+	var mat=[],v=obj.verts,f=obj.faces,a,i,j;
+	for(i=0;i<f.length;i++){ // each face
+		f[i] = tri(f[i]);
+		for(j=0;j<f[i].length;j++){ // each point index
+			arrConcat(
+				mat,
+				v.slice( (f[i][j]-1)*3, (f[i][j]-1)*3+3 )
+			);
+		}
 	}
-	o.faces=obj.faces;
-	o.verts=mat;
-	return o;
+	return { faces: obj.faces, verts: mat }
 }
 function scaleObj(obj,n){
 	var o = {verts:obj.verts,faces:obj.faces},i;
@@ -102,8 +112,8 @@ function translate(mat,vec){
 	return mat;
 }
 function init(){
-	obj = parseObj(obj);
-	obj = scaleObj(obj, .02);
+	obj = parseObj( obj );
+	obj = scaleObj( obj, 0.03 );
 	obj.verts = translate( obj.verts, [0,0,0] );
 	clr = paintVerts(obj.verts);
 
@@ -162,8 +172,8 @@ function init(){
 	function animate(){
 		requestAnimationFrame(animate);
 		// translate( mat, [.001,.003,0] );
-		rotateY(mat,.01);
-		rotateX(mat,.02);
+		rotateY(mat,.003);
+		rotateX(mat,.006);
 		C.uniformMatrix4fv( uniLoc.matrix, false, mat );
 		C.drawArrays(C.TRIANGLES,0,obj.verts.length/3);
 	}
