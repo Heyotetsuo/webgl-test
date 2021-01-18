@@ -1,18 +1,8 @@
-var doc=document,verts,clr,vBuff,cBuff,vShdr,fShdr,prog,pLoc,cLoc,uniLoc,mat,res,rnd=Math.random;
+var doc=document,obj,clr,vBuff,cBuff,vShdr,fShdr,prog,pLoc,cLoc,uniLoc,mat,res,rnd=Math.random;
 var CVS=doc.querySelector("canvas");
 var C=CVS.getContext("webgl");
 var AB=C.ARRAY_BUFFER,SD=C.STATIC_DRAW;
 function mat4Create(){ return [ 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 ] }
-function parseVerts(mat){
-	var mat2=[],i,j,idx;
-	for(i=0;i<mat.length;i+=3){ // step through each point (3 values)
-		for(j=0;j<9;j++){ // step through each face (9 values)
-			idx=(i+j)%mat.length;
-			mat2.push(mat[idx]/2);
-		}
-	}
-	return mat2;
-}
 function translate(mat,vec){
 	for(var i=0;i<vec.length;i++) mat[i+12]+=vec[i];
 }
@@ -50,8 +40,8 @@ function rotateY(m,angle){
 	m[10] = c*m[10]-s*mv8;
 }
 function addRandTo(a,n){
-	if (!a) throw("addRandTo() requires argument `a` (array)")
-	if (!n) throw("addRandTo() requires second argument `n` (integer)");
+	if (!a) throw("addRandTo() needs arg `a` (arr)")
+	if (!n) throw("addRandTo() needs 2nd arg `n` (int)");
 	for(var i=0;i<n;i++) a.push(rnd());
 	return a;
 }
@@ -67,17 +57,53 @@ function paintVerts(verts){
 	}
 	return a;
 }
+function addPointTo(a,i,o){ // dest a, source index i, source obj o
+	i = (i-1)*3;
+	for(var j=0;j<3;j++) a.push(o.verts[i+j]);
+	return a;
+}
+function parseObj(obj){
+	var mat=[],v=obj.verts,f=obj.faces,i,j,o={};
+	var a,b,c,d,l=f.length;
+	for(i=0;i<f.length;i+=4){ // triangulate
+		a=i%l,b=(i+1)%l,c=(i+2)%l,d=(i+3)%l;
+		addPointTo( mat, f[a], obj );
+		addPointTo( mat, f[b], obj );
+		addPointTo( mat, f[c], obj );
+		addPointTo( mat, f[a], obj );
+		addPointTo( mat, f[c], obj );
+		addPointTo( mat, f[d], obj );
+	}
+	o.faces=obj.faces;
+	o.verts=mat;
+	return o;
+}
+function scaleObj(obj,n){
+	var o = {verts:obj.verts,faces:obj.faces},i;
+	for(i=0;i<obj.verts.length;i++){
+		o.verts[i] = obj.verts[i]*n;
+	}
+	return o;
+}
+function loadModel(fname, callback){
+	var xhr = new XMLHttpRequest();
+	xhr.onreadystatechange = function(){
+		if (xhr.readyState === 4 && xhr.status === 200){
+			obj = JSON.parse(xhr.response);
+			callback();
+		}
+	}
+	xhr.open( "GET", fname );
+	xhr.send();
+}
 function init(){
-	verts = parseVerts([
-		-1,-1,-1, -1,1,-1, -1,-1,1, -1,1,1,
-		1,-1,1, 1,1,1, 1,-1,-1, 1,1,-1,
-	]);
-  
-	clr = paintVerts(verts);
+	obj = parseObj(obj);
+	obj = scaleObj(obj, .02);
+	clr = paintVerts(obj.verts);
 
 	vBuff = C.createBuffer();
 	C.bindBuffer(AB, vBuff);
-	C.bufferData(AB, new Float32Array(verts), SD);
+	C.bufferData(AB, new Float32Array(obj.verts), SD);
 	cBuff = C.createBuffer();
 	C.bindBuffer(AB, cBuff);
 	C.bufferData(AB, new Float32Array(clr), SD);
@@ -133,12 +159,12 @@ function init(){
 		rotateY(mat,.01);
 		rotateX(mat,.02);
 		C.uniformMatrix4fv( uniLoc.matrix, false, mat );
-		C.drawArrays(C.TRIANGLES,0,verts.length/3);
+		C.drawArrays(C.TRIANGLES,0,obj.verts.length/3);
 	}
 
 	animate();
 }
 function main(){
-	init();
+	loadModel("figure.json", init);
 }
 main();
