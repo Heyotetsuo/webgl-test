@@ -1,4 +1,4 @@
-var doc=document,obj,clr,vBuff,cBuff,vShdr,fShdr,prog,pLoc,cLoc,uniLoc,mat,res,rnd=Math.random;
+var doc=document,win=window,obj,clr,vBuff,cBuff,vShdr,fShdr,prog,pLoc,cLoc,uniLoc,mat,res,rnd=Math.random,me;
 var CVS=doc.querySelector("canvas");
 var C=CVS.getContext("webgl");
 var AB=C.ARRAY_BUFFER,SD=C.STATIC_DRAW;
@@ -111,10 +111,24 @@ function translate(mat,vec){
 	}
 	return mat;
 }
+function rotate(){
+	rotateY( mat, me.movementX/-100 );
+	rotateX( mat, me.movementY/-100 );
+
+	C.uniformMatrix4fv( uniLoc.matrix, false, mat );
+	C.drawArrays(C.TRIANGLES,0,obj.verts.length/3);
+}
+function doMouseMove(){
+	me = event;
+	requestAnimationFrame( rotate )
+}
+function doMouseDown(){
+	CVS.addEventListener( "mousemove", doMouseMove );
+}
 function init(){
 	obj = parseObj( obj );
-	obj = scaleObj( obj, 0.03 );
-	obj.verts = translate( obj.verts, [0,0,0] );
+	obj = scaleObj( obj, 0.02 );
+	obj.verts = translate( obj.verts, [0,-2,0] );
 	clr = paintVerts(obj.verts);
 
 	vBuff = C.createBuffer();
@@ -169,18 +183,15 @@ function init(){
 	uniLoc = { matrix: C.getUniformLocation(prog,`matrix`) }
 	mat = mat4Create();
 
-	function animate(){
-		requestAnimationFrame(animate);
-		// translate( mat, [.001,.003,0] );
-		rotateY(mat,.003);
-		rotateX(mat,.006);
-		C.uniformMatrix4fv( uniLoc.matrix, false, mat );
-		C.drawArrays(C.TRIANGLES,0,obj.verts.length/3);
-	}
+	C.uniformMatrix4fv( uniLoc.matrix, false, mat );
+	C.drawArrays(C.TRIANGLES,0,obj.verts.length/3);
 
-	animate();
+	CVS.addEventListener( "mousedown", doMouseDown );
+	CVS.addEventListener( "mouseup", function(){
+		CVS.removeEventListener( "mousemove", doMouseMove );
+	});
 }
 function main(){
-	loadModel("tape.json", init);
+	loadModel("figure.json", init);
 }
 main();
