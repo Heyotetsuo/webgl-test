@@ -1,4 +1,5 @@
-var doc=document,win=window,obj,clr,vBuff,cBuff,vShdr,fShdr,prog,pLoc,cLoc,uniLoc,mat,res,rnd=Math.random,me;
+var doc=document,win=window,obj,clr,vBuff,cBuff,vShdr,fShdr,prog,pLoc,cLoc,uniLoc,mat,res,me,projMat;
+var rnd=Math.random;
 var CVS=doc.querySelector("canvas");
 var C=CVS.getContext("webgl");
 var AB=C.ARRAY_BUFFER,SD=C.STATIC_DRAW;
@@ -42,19 +43,32 @@ function addRandTo(a,n){
 	for(var i=0;i<n;i++) a.push(rnd());
 	return a;
 }
-function paintVerts(verts){
-	var i,j,k,a=[],b=[],c=[];
-	b=addRandTo(b,9);
-	for(i=0;i<verts.length;i+=3){ // each point (3values)
-		b=b.slice(3);
-		b=addRandTo(b,3);
-		for(j=0;j<9;j++){ // each color
-			a.push(b[j]);
-		}
+function getFaceNorm(vnorms){
+	var fnorm=[0,0,0];
+	for( var i=0;i<vnorms.length;i++){
+		fnorm = arrSum(fnorm,vnorms[i]);
 	}
-	return a;
+
 }
-function tri(a){
+function getColors(obj){
+	var i,j,k,f=[],c=[],res=[],cc,norm,norms,idx;
+	var f=obj.faces,norms=obj.norms;
+	for (i=0;i<f.length;i++){ // faces
+		idx=f[i][0];
+		res[idx] = [0,0,0];
+		for(j=0;j<f[i].length;j++){ // normal indicies
+			idx=f[i][j];
+			res[idx*3] += norms[idx*3]
+			res[idx*3+1] += norms[idx*3+1]
+			res[idx*3+2] += norms[idx*3+2]
+		}
+		res[idx*3] /= f[i].length;
+		res[idx*3+1] /= f[i].length;
+		res[idx*3+2] /= f[i].length;
+	}
+	return res;
+}
+function tri(a){ // triangulation
 	if ( a.length === 3 ){
 		return a;
 	}
@@ -67,26 +81,56 @@ function tri(a){
 	}
 	return b;
 }
+function arrMath(a,b,op){
+	var c=[],v;
+	if (!op) throw("operation must be provided");
+	if (a.length !== b.length) throw("arrays must be of equal length");
+	for( var i=0;i<a.length;i++){
+		b.constructor === Number ? v=b : v=b[i] ;
+		switch(op){
+		case "multiply":
+			c[i] = a[i] * v;
+			break;
+		case "divide":
+			c[i] = a[i] / v;
+			break;
+		case "add":
+			c[i] = a[i] + v;
+			break;
+		case "subtract":
+			c[i] = a[i] - v;
+			break;
+		default:
+			throw( "invalid operation" );
+			break;
+		}
+	}
+	return c;
+}
 function arrConcat(a,b){
 	for (var i=0; i<b.length; i++){
 		a.push(b[i]);
 	}
 }
 function parseObj(obj){
-	var mat=[],v=obj.verts,f=obj.faces,a,i,j;
-	for(i=0;i<f.length;i++){ // each face
+	var vmat=[],nmat=[],v=obj.verts,f=obj.faces,n=obj.norms,a,i,j;
+	for(i=0;i<f.length;i++){ // each face/normal
 		f[i] = tri(f[i]);
 		for(j=0;j<f[i].length;j++){ // each point index
 			arrConcat(
-				mat,
+				vmat,
 				v.slice( (f[i][j]-1)*3, (f[i][j]-1)*3+3 )
 			);
+			arrConcat(
+				nmat, 
+				n.slice( i, i+3 )
+			)
 		}
 	}
-	return { faces: obj.faces, verts: mat }
+	return {faces: obj.faces, verts: vmat, norms: nmat}
 }
 function scaleObj(obj,n){
-	var o = {verts:obj.verts,faces:obj.faces},i;
+	var o = {verts:obj.verts,faces:obj.faces,norms:obj.norms},i;
 	for(i=0;i<obj.verts.length;i++){
 		o.verts[i] = obj.verts[i]*n;
 	}
@@ -97,6 +141,7 @@ function loadModel(fname, callback){
 	xhr.onreadystatechange = function(){
 		if (xhr.readyState === 4 && xhr.status === 200){
 			obj = JSON.parse(xhr.response);
+			console.log(obj);
 			callback();
 		}
 	}
@@ -129,7 +174,7 @@ function init(){
 	obj = parseObj( obj );
 	obj = scaleObj( obj, 0.02 );
 	obj.verts = translate( obj.verts, [0,-2,0] );
-	clr = paintVerts(obj.verts);
+	clr = getColors(obj);
 
 	vBuff = C.createBuffer();
 	C.bindBuffer(AB, vBuff);
@@ -192,6 +237,6 @@ function init(){
 	});
 }
 function main(){
-	loadModel("figure.json", init);
+	loadModel("cube.json", init);
 }
 main();
