@@ -1,41 +1,61 @@
-var doc=document,win=window,obj,clr,vBuff,cBuff,vShdr,fShdr,prog,pLoc,cLoc,uniLoc,mat,res,me,projMat;
-var rnd=Math.random;
-var CVS=doc.querySelector("canvas");
-var C=CVS.getContext("webgl");
-var AB=C.ARRAY_BUFFER,SD=C.STATIC_DRAW;
+var doc=document,win=window,rnd=Math.random;
+var obj,clr,vBuff,cBuff,vShdr,fShdr,prog,pLoc,cLoc,uniLoc,mat,res,me,projMat;
+var CVS=doc.querySelector("canvas"),C=CVS.getContext("webgl");
+var AB=C.ARRAY_BUFFER,SD=C.STATIC_DRAW,CAM_POS;
+function doMouseDown(){ CVS.addEventListener("mousemove",doMouseMove) }
+function doMouseMove(){
+	me = event;
+	requestAnimationFrame( rotate )
+}
 function mat4Create(){ return [ 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 ] }
-function rotateZ(m,angle){
+function rotateAxis(m,angle,axis){
 	var c = Math.cos(angle);
 	var s = Math.sin(angle);
-	var mv0=m[0], mv4=m[4], mv8=m[8]; 
-	m[0] = c*m[0]-s*m[1];
-	m[4] = c*m[4]-s*m[5];
-	m[8] = c*m[8]-s*m[9];
-	m[1] = c*m[1]+s*mv0;
-	m[5] = c*m[5]+s*mv4;
-	m[9] = c*m[9]+s*mv8;
+	var cp = CAM_POS;
+	var mv1=m[0],mv2=m[4],mv3=m[8];
+	switch(axis){
+	case 'x':
+		m[0] = c*m[0]+s*m[2];
+		m[4] = c*m[4]+s*m[6];
+		m[8] = c*m[8]+s*m[10];
+		m[2] = c*m[2]-s*mv1;
+		m[6] = c*m[6]-s*mv2;
+		m[10] = c*m[10]-s*mv3;
+		break;
+	case 'y':
+		mv1=m[1],mv2=m[5],mv3=m[9];
+		m[1] = m[1]*c-m[2]*s;
+		m[5] = m[5]*c-m[6]*s;
+		m[9] = m[9]*c-m[10]*s;
+		m[2] = m[2]*c+mv1*s;
+		m[6] = m[6]*c+mv2*s;
+		m[10] = m[10]*c+mv3*s;
+		break;
+	case 'z':
+		m[0] = c*m[0]-s*m[1];
+		m[4] = c*m[4]-s*m[5];
+		m[8] = c*m[8]-s*m[9];
+		m[1] = c*m[1]+s*mv1;
+		m[5] = c*m[5]+s*mv2;
+		m[9] = c*m[9]+s*mv3;
+		break;
+	default:
+		break;
+	}
 }
-function rotateX(m, angle){
-	var c = Math.cos(angle);
-	var s = Math.sin(angle);
-	var mv1=m[1], mv5=m[5], mv9=m[9];
-	m[1] = m[1]*c-m[2]*s;
-	m[5] = m[5]*c-m[6]*s;
-	m[9] = m[9]*c-m[10]*s;
-	m[2] = m[2]*c+mv1*s;
-	m[6] = m[6]*c+mv5*s;
-	m[10] = m[10]*c+mv9*s;
+function rotate(){
+	rotateAxis( mat, me.movementX/-100, 'x' );
+	rotateAxis( mat, me.movementY/-100, 'y' );
+	C.uniformMatrix4fv( uniLoc.matrix, false, mat );
+	C.drawArrays(C.TRIANGLES,0,obj.verts.length/3);
 }
-function rotateY(m,angle){
-	var c = Math.cos(angle);
-	var s = Math.sin(angle);
-	var mv0=m[0], mv4=m[4], mv8=m[8];
-	m[0] = c*m[0]+s*m[2];
-	m[4] = c*m[4]+s*m[6];
-	m[8] = c*m[8]+s*m[10];
-	m[2] = c*m[2]-s*mv0;
-	m[6] = c*m[6]-s*mv4;
-	m[10] = c*m[10]-s*mv8;
+function translate(mat,vec){
+	for(var i=0;i<mat.length;i+=3){
+		mat[i]+=vec[0];
+		mat[i+1]+=vec[1];
+		mat[i+2]+=vec[2];
+	}
+	return mat;
 }
 function addRandTo(a,n){
 	if (!a) throw("addRandTo() needs arg `a` (arr)")
@@ -43,43 +63,18 @@ function addRandTo(a,n){
 	for(var i=0;i<n;i++) a.push(rnd());
 	return a;
 }
-function getFaceNorm(vnorms){
-	var fnorm=[0,0,0];
-	for( var i=0;i<vnorms.length;i++){
-		fnorm = arrSum(fnorm,vnorms[i]);
+function flattenMat( mat ){
+	if ( !(mat instanceof Array) ) throw( "mat must be a 2D Array" );
+	var a = [],i;
+	for(i=0;i<mat.length;i++){
+		arrConcat( a, mat[i] );
 	}
-
+	return a;
 }
 function getColors(obj){
-	var i,j,k,f=[],c=[],res=[],cc,norm,norms,idx;
-	var f=obj.faces,norms=obj.norms;
-	for (i=0;i<f.length;i++){ // faces
-		idx=f[i][0];
-		res[idx] = [0,0,0];
-		for(j=0;j<f[i].length;j++){ // normal indicies
-			idx=f[i][j];
-			res[idx*3] += norms[idx*3]
-			res[idx*3+1] += norms[idx*3+1]
-			res[idx*3+2] += norms[idx*3+2]
-		}
-		res[idx*3] /= f[i].length;
-		res[idx*3+1] /= f[i].length;
-		res[idx*3+2] /= f[i].length;
-	}
-	return res;
-}
-function tri(a){ // triangulation
-	if ( a.length === 3 ){
-		return a;
-	}
-	var b=[],idx,i,j;
-	for(i=0;i<a.length;i+=2){
-		for(j=0;j<3;j++){
-			idx=(i+j)%a.length;
-			b.push(a[idx]);
-		}
-	}
-	return b;
+	var a=[],i;
+	for (i=0;i<obj.verts.length/3;i++){ arrConcat(a, [rnd(),rnd(),rnd()]) }
+	return a;
 }
 function arrMath(a,b,op){
 	var c=[],v;
@@ -113,21 +108,25 @@ function arrConcat(a,b){
 	}
 }
 function parseObj(obj){
-	var vmat=[],nmat=[],v=obj.verts,f=obj.faces,n=obj.norms,a,i,j;
-	for(i=0;i<f.length;i++){ // each face/normal
-		f[i] = tri(f[i]);
-		for(j=0;j<f[i].length;j++){ // each point index
-			arrConcat(
-				vmat,
-				v.slice( (f[i][j]-1)*3, (f[i][j]-1)*3+3 )
-			);
-			arrConcat(
-				nmat, 
-				n.slice( i, i+3 )
-			)
+	var vmat=[],nmat=[],a=[],v=obj.verts,f=obj.faces,n=obj.norms,i,j,idx;
+	for(i=0;i<f.length;i++){ // triangulate faces
+		if ( f[i].length > 4 ) throw( "Ngons not allowed" );
+		if ( f[i].length < 3 ) throw( "Not enough points to make a face" );
+		if ( f[i].length === 3 ){
+			a.push( f[i] );
+		} else if ( f[i].length === 4 ){
+			a.push( f[i].slice(0,3) );
+			a.push( [f[i][2],f[i][3],f[i][0]] );
 		}
 	}
-	return {faces: obj.faces, verts: vmat, norms: nmat}
+	f=a;
+	for(i=0;i<f.length;i++){ // triangulate verts
+		for(j=0;j<f[i].length;j++){
+			idx = f[i][j]-1;
+			arrConcat( vmat, v.slice(idx*3, idx*3+3) );
+		}
+	}
+	return {verts:vmat,faces:a,norms:n}
 }
 function scaleObj(obj,n){
 	var o = {verts:obj.verts,faces:obj.faces,norms:obj.norms},i;
@@ -141,14 +140,13 @@ function loadModel(fname, callback){
 	xhr.onreadystatechange = function(){
 		if (xhr.readyState === 4 && xhr.status === 200){
 			obj = JSON.parse(xhr.response);
-			console.log(obj);
 			callback();
 		}
 	}
 	xhr.open( "GET", fname );
 	xhr.send();
 }
-function translate(mat,vec){
+function ranslate(mat,vec){
 	for(var i=0;i<mat.length;i+=3){
 		mat[i]+=vec[0];
 		mat[i+1]+=vec[1];
@@ -156,24 +154,11 @@ function translate(mat,vec){
 	}
 	return mat;
 }
-function rotate(){
-	rotateY( mat, me.movementX/-100 );
-	rotateX( mat, me.movementY/-100 );
-
-	C.uniformMatrix4fv( uniLoc.matrix, false, mat );
-	C.drawArrays(C.TRIANGLES,0,obj.verts.length/3);
-}
-function doMouseMove(){
-	me = event;
-	requestAnimationFrame( rotate )
-}
-function doMouseDown(){
-	CVS.addEventListener( "mousemove", doMouseMove );
-}
 function init(){
-	obj = parseObj( obj );
-	obj = scaleObj( obj, 0.02 );
-	obj.verts = translate( obj.verts, [0,-2,0] );
+	CAM_POS = [0,0,-1];
+	obj = parseObj(obj);
+	obj = scaleObj( obj, 0.01);
+	// obj.verts = translate( obj.verts, CAM_POS );
 	clr = getColors(obj);
 
 	vBuff = C.createBuffer();
@@ -237,6 +222,6 @@ function init(){
 	});
 }
 function main(){
-	loadModel("cube.json", init);
+	loadModel("figure.json", init);
 }
 main();
